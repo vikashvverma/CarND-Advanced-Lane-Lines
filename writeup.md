@@ -187,16 +187,22 @@ The resultant image is as shown below.
 
 #### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
 
-The radius of curvature is calculated using `left_fit` and `right_fit`  ibtained using `polyfit` function as shown in the function `measure_curvature_real`. The vehicle position is calulcated as average of two radius. This gives vehicle position from left corner.
+The radius of curvature is calculated using `left_fit` and `right_fit`  ibtained using `polyfit` function as shown in the function `measure_curvature_real`. The vehicle position is calulcated as middle of two lane lines and then subtracted from center of the image. This gives the vehicle position from the center of the frame.
 
 ```python
-def measure_curvature_real(binary_warped, left_fitx, right_fitx, ploty):
+def measure_curvature_real(binary_warped, left_fit, right_fit):
     '''
     Calculates the curvature of polynomial functions in meters.
     '''
     # Define conversions in x and y from pixels space to meters
-    ym_per_pix = 30/1280 # meters per pixel in y dimension
+    ym_per_pix = 30/700 # meters per pixel in y dimension
     xm_per_pix = 3.7/720 # meters per pixel in x dimension
+    
+    ploty = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0] )
+
+    
+    left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
+    right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
     
 
     left_fit_cr = np.polyfit(ploty*ym_per_pix, left_fitx*xm_per_pix, 2)
@@ -210,7 +216,12 @@ def measure_curvature_real(binary_warped, left_fitx, right_fitx, ploty):
     left_curverad = ((1 + (2*left_fit_cr[0]*y_eval*ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2*left_fit_cr[0])
     right_curverad = ((1 + (2*right_fit_cr[0]*y_eval*ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2*right_fit_cr[0])
     
-    return left_curverad, right_curverad
+     # Calculate vehicle center position
+    left_lane_bottom = (left_fit[0]*y_eval)**2 + left_fit[0]*y_eval + left_fit[2]
+    right_lane_bottom = (right_fit[0]*y_eval)**2 + right_fit[0]*y_eval + right_fit[2]
+    position = ((left_lane_bottom + right_lane_bottom)/2 - 640) * xm_per_pix
+    
+    return left_curverad, right_curverad, position
 ```
 
 
@@ -239,6 +250,13 @@ Here's a [link to my video result](./project_video_output.mp4)
 
 #### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
-I believe there is scope of improvement becuase some of the frames seems to be incorrect.
+- The difficult part for me was to provide a smooth transition of the lane lines where lines are not visible clearly.
+- The pipeline might fail when
+  - There are no lane lines.
+  - The lane lines width are different.
+  - The lanes are highly zig-zag.
 
-I would appreciate your constructive feedback regarding the project.Literally had to struggle through in different such as obtaining `image points` `object points` for lane images(later figured out that existing `object points` and `image points` because camera would be the same ) and then manually finding `src` and `des` points. Of course I took help from course videos and codes.
+- This can be made more robust:
+  -  Using dynamic range of lane width.
+  - Using GPS coordinates.
+  - Avoiding manual selection of source destination points for warping.
